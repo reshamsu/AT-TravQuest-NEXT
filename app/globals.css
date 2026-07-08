@@ -1,0 +1,181 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&display=swap');
+
+@import "tailwindcss";
+
+/* Class-based dark mode for the dashboard (toggled via ThemeProvider adding/
+   removing `.dark` on <html>) instead of Tailwind v4's default
+   prefers-color-scheme-only dark:. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Dashboard dark-mode surface tokens — brand-neutral chrome, independent
+     of the coral/teal/blue accent palette used throughout the site. */
+  --color-dk-base: #0b0d12;
+  --color-dk-surface: #12151c;
+  --color-dk-raised: #1a1e28;
+  --color-dk-stroke: #262b38;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #2563eb;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  color: #1a1a1a;
+}
+
+.cursive {
+  font-family: "Playfair", serif;
+}
+
+/* Autofill override for light inputs (signup/login forms on white background) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  caret-color: #1a1a1a;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+@layer utilities {
+  /* ── Light buttons ────────────────────────────────── */
+  .btn-light-sm {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none bg-white hover:bg-white/90 px-4 py-2 text-[12px] text-black/80 hover:text-black cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_18px_rgba(255,255,255,0.2)];
+  }
+  .btn-light-base {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none bg-white hover:bg-white/90 px-6 py-2.5 text-[13px] lg:text-[14px] text-black/80 hover:text-black cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)];
+  }
+  .btn-light-glass {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none bg-white/10 hover:bg-white/20 px-6 py-2.5 text-[13px] lg:text-[14px] text-white/80 hover:text-white cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_18px_rgba(255,255,255,0.1)];
+  }
+  .btn-light-outline {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold border-b-2 border-[#2563eb] bg-transparent px-1 py-2 text-[13px] lg:text-[14px] text-white hover:text-[#2dd4bf] cursor-pointer transition-all hover:scale-105 w-fit duration-500;
+  }
+
+  /* ── Primary buttons ─────────────────────────────────────────── */
+  .btn-primary-sm {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#f2836f] hover:bg-[#e06d59] px-4 py-2 text-[12px] text-white cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_18px_rgba(242,131,111,0.4)];
+  }
+  .btn-primary-base {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#f2836f] hover:bg-[#e06d59] px-6 py-2.5 text-[13px] lg:text-[14px] text-white cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_22px_rgba(242,131,111,0.4)];
+  }
+  .btn-primary-glass {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#f2836f]/10 hover:bg-[#f2836f]/20 px-4 py-2 text-[12px] text-[#f2836f] cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_16px_rgba(242,131,111,0.25)];
+  }
+  .btn-primary-outline {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-2 border-[#f2836f]/80 hover:border-[#f2836f] bg-[#f2836f]/10 hover:bg-[#f2836f]/20 px-6 py-2.5 text-[13px] lg:text-[14px] text-[#f2836f] cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_16px_rgba(242,131,111,0.25)];
+  }
+
+  /* ── Secondary buttons ─────────────────────────────────────────── */
+  .btn-secondary-sm {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#00B5A3] hover:bg-[#009d8d] px-4 py-2 text-[12px] text-white cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_18px_rgba(0,181,163,0.4)];
+  }
+  .btn-secondary-base {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#00B5A3] hover:bg-[#009d8d] px-6 py-2.5 text-[13px] lg:text-[14px] text-white cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_22px_rgba(0,181,163,0.4)];
+  }
+  .btn-secondary-glass {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-none bg-[#00B5A3]/10 hover:bg-[#00B5A3]/20 px-4 py-2 text-[12px] text-[#00B5A3] cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_16px_rgba(0,181,163,0.25)];
+  }
+  .btn-secondary-outline {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full border-2 border-[#00B5A3]/80 hover:border-[#00B5A3] bg-[#00B5A3]/10 hover:bg-[#00B5A3]/20 px-6 py-2.5 text-[13px] lg:text-[14px] text-[#00B5A3] cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_16px_rgba(0,181,163,0.25)];
+  }
+
+  /* ── Dark buttons ─────────────────────────────────────────── */
+  .btn-dark-sm {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none border-white/10 bg-black/90 hover:bg-black px-4 py-2 text-[12px] text-white cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_18px_rgba(0,0,0,0.5)];
+  }
+  .btn-dark-base {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none border-white/10 bg-black hover:bg-black/90 px-6 py-2.5 text-[13px] lg:text-[14px] text-white/90 hover:text-white cursor-pointer transition-all hover:scale-105 w-full duration-500 hover:shadow-[0_0_20px_rgba(0,0,0,0.5)];
+  }
+  .btn-dark-underline {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold border-b-2 border-black/70 hover:border-black px-1 py-2 text-[13px] lg:text-[14px] text-black/80 hover:text-black cursor-pointer transition-all hover:scale-105 w-fit duration-500;
+  }
+  .btn-dark-glass {
+    @apply inline-flex items-center justify-center gap-2 hover:gap-3 font-semibold rounded-full border-none border-black/0 bg-black/5 hover:bg-blue-600 px-2 py-2 text-[12px] text-black hover:text-white cursor-pointer transition-all hover:scale-105 w-fit duration-500 hover:shadow-[0_0_18px_rgba(255,255,255,0.08)];
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/*  PRINT — TravQuest branded browser-print layout                        */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    font-family: "Inter", sans-serif !important;
+  }
+
+  /* ── Hero: constrain height for A4 ── */
+  #tq-hero {
+    height: 230px !important;
+    min-height: unset !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Body wrapper: collapse padding ── */
+  #tq-body {
+    padding: 12px 24px 0 !important;
+    max-width: none !important;
+  }
+
+  /* ── Two-col grid → single column stack (content below booking card) ── */
+  #tq-detail-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+
+  /* ── Booking card sidebar: remove sticky, full width ── */
+  #tq-booking-wrapper {
+    position: static !important;
+    width: 100% !important;
+  }
+  #tq-booking-card {
+    box-shadow: none !important;
+    border: 1.5px solid #e5e7eb !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Section cards: avoid page breaks, remove shadow ── */
+  .tq-section {
+    box-shadow: none !important;
+    border: 1.5px solid #e5e7eb !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 10px;
+  }
+
+  /* ── Inclusions / Exclusions boxes ── */
+  .tq-inc-exc {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ── Links: no underline, keep color ── */
+  a {
+    text-decoration: none !important;
+  }
+}
