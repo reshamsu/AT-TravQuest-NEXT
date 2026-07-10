@@ -163,25 +163,27 @@ export default function DashboardOverview() {
   const [props, setProps] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setGreeting(getGreeting()); }, []);
+  useEffect(() => { Promise.resolve().then(() => setGreeting(getGreeting())); }, []);
 
   useEffect(() => {
-    setLoading(true);
-    supabase
-      .from("ac_listings_travel")
-      .select("id, title, listing_type, city, price, status, image_urls, created_at")
-      .eq("company", company.label)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setProps(data.map((r) => ({
-            ...r,
-            city: Array.isArray(r.city) ? (r.city[0] ?? "") : (r.city ?? ""),
-            image_urls: Array.isArray(r.image_urls) ? r.image_urls : [],
-          })));
-        }
-        setLoading(false);
-      });
+    Promise.resolve().then(() => {
+      setLoading(true);
+      supabase
+        .from("ac_listings_travel")
+        .select("id, title, listing_type, city, price, status, image_urls, created_at")
+        .eq("company", company.label)
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setProps(data.map((r) => ({
+              ...r,
+              city: Array.isArray(r.city) ? (r.city[0] ?? "") : (r.city ?? ""),
+              image_urls: Array.isArray(r.image_urls) ? r.image_urls : [],
+            })));
+          }
+          setLoading(false);
+        });
+    });
   }, [company.label]);
 
   // ── Contact inquiries (live, from the public /contact form) ──────────────
@@ -202,7 +204,7 @@ export default function DashboardOverview() {
   }, [company.label]);
 
   useEffect(() => {
-    fetchContacts();
+    Promise.resolve().then(fetchContacts);
     const id = setInterval(fetchContacts, 15_000);
     return () => clearInterval(id);
   }, [fetchContacts]);
@@ -232,7 +234,7 @@ export default function DashboardOverview() {
   }, [company.label, canReviewSignups]);
 
   useEffect(() => {
-    fetchPendingUsers();
+    Promise.resolve().then(fetchPendingUsers);
     if (!canReviewSignups) return;
     const id = setInterval(fetchPendingUsers, 15_000);
     return () => clearInterval(id);
