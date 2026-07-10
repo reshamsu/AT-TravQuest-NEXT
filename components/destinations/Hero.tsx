@@ -52,7 +52,7 @@ export default function Hero() {
 
       const formattedCountry = unslugify(country);
       let query = supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
         .ilike("country", formattedCountry);

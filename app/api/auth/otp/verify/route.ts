@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveRole } from "@/lib/user-directory";
+import { resolveRole, resolveDisplayName } from "@/lib/user-directory";
 import { createSessionCookie, SESSION_COOKIE_OPTIONS } from "@/lib/session";
 import { DEFAULT_TENANT_COMPANY } from "@/lib/tenant";
 
@@ -61,12 +61,23 @@ export async function POST(req: NextRequest) {
     email = pending.email;
   }
 
-  const session = await createSessionCookie({
-    email,
-    role: await resolveRole(email),
-    company: DEFAULT_TENANT_COMPANY,
-    provider: method === "totp" ? "totp" : "email_otp",
-  });
+  let session: string;
+  try {
+    const [role, name] = await Promise.all([resolveRole(email), resolveDisplayName(email)]);
+    session = await createSessionCookie({
+      email,
+      name,
+      role,
+      company: DEFAULT_TENANT_COMPANY,
+      provider: method === "totp" ? "totp" : "email_otp",
+    });
+  } catch (err) {
+    console.error("Failed to create session cookie:", err);
+    return NextResponse.json(
+      { error: "Sign-in is temporarily unavailable. Please try again shortly." },
+      { status: 500 },
+    );
+  }
 
   const res = NextResponse.json({ ok: true });
 

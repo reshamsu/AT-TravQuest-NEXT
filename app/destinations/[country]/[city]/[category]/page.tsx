@@ -25,7 +25,8 @@ import {
 import { useParams, useSearchParams } from "next/navigation";
 
 interface Item {
-  id: number;
+  id: string | number;
+  ref_id?: string;
   title: string;
   subtitle?: string;
   tagline?: string;
@@ -44,6 +45,8 @@ interface Item {
   location?: string;
 }
 
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
+
 type SortOption = "popular" | "price-asc" | "price-desc" | "recommended";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -54,7 +57,7 @@ const SORT_LABELS: Record<SortOption, string> = {
 };
 
 interface CategoryConfig {
-  table: string;
+  listingType: string;
   heading: string;
   description: string;
   placeholder: string;
@@ -65,7 +68,7 @@ interface CategoryConfig {
 
 const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   hotels: {
-    table: "hotels",
+    listingType: "Hotels",
     heading: "Hotels & Stays",
     description: "Hotels, Resorts & Apartments at Best Rates",
     placeholder: "Search hotels…",
@@ -90,7 +93,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     ],
   },
   tours: {
-    table: "tours",
+    listingType: "Tours",
     heading: "Tours & Sightseeing",
     description: "Theme Parks, Attractions & Unforgettable Activities",
     placeholder: "Search tours…",
@@ -114,7 +117,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   },
   // Shop is missing
   packages: {
-    table: "packages",
+    listingType: "Packages",
     heading: "Travel Packages",
     description: "Curated Trips, Guided Tours & All-in-One Holidays",
     placeholder: "Search packages…",
@@ -129,7 +132,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     ],
   },
   meetings: {
-    table: "meetings",
+    listingType: "Meetings",
     heading: "Meetings & Events",
     description: "Premium Spaces for Meetings Conferences & Events",
     placeholder: "Search venues…",
@@ -150,7 +153,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     dynamicCategoryLabel: "Venue Type",
   },
   apartments: {
-    table: "apartments",
+    listingType: "Apartments",
     heading: "Service Apartments",
     description: "Spacious Stays for Comfort, Work & Extended Visits",
     placeholder: "Search apartments…",
@@ -163,7 +166,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     dynamicCategoryLabel: "Apartment Type",
   },
   airports: {
-    table: "airports",
+    listingType: "Transfers",
     heading: "Airport Transfers",
     description: "Private Rides, Pickups & Seamless Airport Travel",
     placeholder: "Search transfers…",
@@ -184,7 +187,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     dynamicCategoryLabel: "Transfer Type",
   },
   visas: {
-    table: "visas",
+    listingType: "Visas",
     heading: "Visas",
     description: "Fast, Reliable Processing with Expert Guidance",
     placeholder: "Search visas…",
@@ -201,7 +204,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     dynamicCategoryLabel: "Visa Type",
   },
   promotions: {
-    table: "promotions",
+    listingType: "Promotions",
     heading: "Promotions & Deals",
     description:
       "Exclusive Deals & Limited-Time Offers Handpicked For You. Don't Miss Out.",
@@ -225,7 +228,7 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     dynamicCategoryLabel: "Promotion Type",
   },
   shopping: {
-    table: "shop",
+    listingType: "Shop",
     heading: "Shop",
     description: "Top Malls, Luxury Brands & Local Markets",
     placeholder: "Search shopping…",
@@ -666,7 +669,12 @@ const CategoryPage = () => {
   useEffect(() => {
     if (!countrySlug || !categorySlug) return;
     const fetchCountryCities = async () => {
-      let q = supabase.from(config.table).select("city").limit(5000);
+      let q = supabase
+        .from("ac_listings_travel")
+        .select("city")
+        .eq("listing_type", config.listingType)
+        .limit(5000);
+      if (COMPANY) q = q.eq("company", COMPANY);
       if (!isAllCities) q = q.contains("country", [countryLabel]);
       const { data } = await q;
       if (data) {
@@ -698,13 +706,17 @@ const CategoryPage = () => {
       setDynamicCategories([]);
       setSelectedCategories([]);
       setSelectedCities([]);
-      let q = supabase.from(config.table).select("*");
+      let q = supabase
+        .from("ac_listings_travel")
+        .select("*")
+        .eq("listing_type", config.listingType);
+      if (COMPANY) q = q.eq("company", COMPANY);
       if (isAllCities) {
         if (countryLabel) q = q.contains("country", [countryLabel]);
       } else {
         q = q.contains("city", [cityLabel]);
       }
-      q = q.order("id", { ascending: true }).limit(isAllCities ? 500 : 200);
+      q = q.order("created_at", { ascending: true }).limit(isAllCities ? 500 : 200);
       if (config.categoryFilter)
         q = q.contains("category", [config.categoryFilter]);
       const { data, error } = await q;
@@ -727,6 +739,7 @@ const CategoryPage = () => {
         }
         return {
           id: row.id,
+          ref_id: row.ref_id ?? undefined,
           title: row.title,
           subtitle: row.subtitle,
           tagline: row.tagline,
@@ -833,10 +846,7 @@ const CategoryPage = () => {
       );
     switch (sortBy) {
       case "popular":
-        result.sort((a, b) => {
-          const recDiff = Number(b.is_recom) - Number(a.is_recom);
-          return recDiff !== 0 ? recDiff : b.id - a.id;
-        });
+        result.sort((a, b) => Number(b.is_recom) - Number(a.is_recom));
         break;
       case "price-asc":
         result.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
@@ -1322,7 +1332,7 @@ const CategoryPage = () => {
                     className="group rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
                   >
                     <Link
-                      href={`/destinations/${countrySlug}/${isAllCities ? slugifyCity(item.city?.[0] ?? citySlug) : citySlug}/${categorySlug}/${item.id}`}
+                      href={`/destinations/${countrySlug}/${isAllCities ? slugifyCity(item.city?.[0] ?? citySlug) : citySlug}/${categorySlug}/${item.ref_id ?? item.id}`}
                     >
                       <div className="relative h-44 md:h-48 overflow-hidden bg-gray-100">
                         <Image
@@ -1442,7 +1452,7 @@ const CategoryPage = () => {
                     className="group rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300"
                   >
                     <Link
-                      href={`/destinations/${countrySlug}/${citySlug}/${categorySlug}/${item.id}`}
+                      href={`/destinations/${countrySlug}/${citySlug}/${categorySlug}/${item.ref_id ?? item.id}`}
                       className="flex"
                     >
                       {/* Thumbnail */}

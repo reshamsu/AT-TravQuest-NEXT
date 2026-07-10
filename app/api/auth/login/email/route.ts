@@ -1,7 +1,7 @@
 export const runtime = "edge";
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAuthorizedEmail } from "@/lib/user-directory";
+import { verifyCredentials } from "@/lib/user-directory";
 
 const MAX_ATTEMPTS = 3;
 
@@ -65,9 +65,7 @@ export async function POST(request: NextRequest) {
   const normalizedEmail = email.trim().toLowerCase();
   const attemptCount = parseInt(request.cookies.get("tq_attempts")?.value ?? "0", 10);
 
-  const allowedPassword = process.env.DEMO_PASSWORD ?? "password";
-  const credentialsValid =
-    password === allowedPassword && (await isAuthorizedEmail(normalizedEmail));
+  const credentialsValid = await verifyCredentials(normalizedEmail, password);
 
   if (!credentialsValid) {
     const newCount = attemptCount + 1;

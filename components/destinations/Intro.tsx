@@ -280,7 +280,7 @@ const DestinationOverview = () => {
     const fetchDestination = async () => {
       setLoading(true);
       let query = supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
         .ilike("country", `%${countryLabel}%`);

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { canManageRole, ROLE_DB_TO_KEY, type Role } from "@/lib/permissions";
+import { canManageRole, canManageUsers, ROLE_DB_TO_KEY, type Role } from "@/lib/permissions";
 import { useUser } from "@/app/dashboard/UserContext";
 import { useCompany } from "@/app/dashboard/CompanyContext";
 
@@ -104,7 +104,13 @@ export default function UsersPage() {
     setUsers(rows);
   }, [company.label]);
 
-  useEffect(() => { setLoading(true); fetchUsers().finally(() => setLoading(false)); }, [fetchUsers]);
+  useEffect(() => {
+    Promise.resolve().then(async () => {
+      setLoading(true);
+      await fetchUsers();
+      setLoading(false);
+    });
+  }, [fetchUsers]);
 
   // ── Filtered list
   const filtered = users.filter((u) => {
@@ -343,7 +349,7 @@ export default function UsersPage() {
                         </button>
                       )}
                       <button onClick={() => openModal("edit", user)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-dk-raised text-gray-400 hover:text-gray-600 transition-all" title="Edit"><Pencil size={13} /></button>
-                      {!isMe && (
+                      {!isMe && canManageUsers(actorRole) && (
                         <button onClick={() => setConfirmDelete({ open: true, id: user.id, name: user.name })} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-all" title="Delete"><Trash2 size={13} /></button>
                       )}
                     </>

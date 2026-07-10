@@ -66,13 +66,19 @@ export async function GET(req: NextRequest) {
   }
 
   // Store the signed session cookie (HMAC'd — see lib/session.ts).
-  const session = await createSessionCookie({
-    email: profile.email,
-    name: profile.name,
-    role: await resolveRole(profile.email),
-    company: DEFAULT_TENANT_COMPANY,
-    provider: "google",
-  });
+  let session: string;
+  try {
+    session = await createSessionCookie({
+      email: profile.email,
+      name: profile.name,
+      role: await resolveRole(profile.email),
+      company: DEFAULT_TENANT_COMPANY,
+      provider: "google",
+    });
+  } catch (err) {
+    console.error("Failed to create session cookie:", err);
+    return NextResponse.redirect(`${origin}/login?error=session_not_configured`);
+  }
 
   const response = NextResponse.redirect(`${origin}${redirectTo}`);
   response.cookies.set("session", session, SESSION_COOKIE_OPTIONS);

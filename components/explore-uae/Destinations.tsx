@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { TbArrowUpRight } from "react-icons/tb";
 
 interface Destination {
-  id: number;
+  id: string;
   country: string;
   city: string;
   tagline: string;
@@ -166,10 +166,10 @@ const DestinationOther: React.FC = () => {
   useEffect(() => {
     const fetchDestinations = async () => {
       const { data, error } = await supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (error) {
         console.error("Error fetching destinations:", error.message);

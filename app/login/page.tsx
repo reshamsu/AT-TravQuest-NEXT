@@ -51,6 +51,7 @@ function LoginContent() {
     errorParam === "token_exchange_failed" ||
     errorParam === "profile_failed";
   const notConfigured = errorParam === "not_configured";
+  const sessionNotConfigured = errorParam === "session_not_configured";
   const from = searchParams.get("from") || "/dashboard";
   const router = useRouter();
 
@@ -310,6 +311,18 @@ function LoginContent() {
               <p className="text-[11px] text-amber-500/80 mt-0.5">
                 Add your Google OAuth credentials to{" "}
                 <code className="font-mono">.env.local</code> to enable this.
+              </p>
+            </div>
+          )}
+          {sessionNotConfigured && (
+            <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-center">
+              <p className="text-xs font-semibold text-red-600">
+                Sign-in is temporarily unavailable
+              </p>
+              <p className="text-[11px] text-red-500/80 mt-0.5">
+                The server is missing its session signing key. Set{" "}
+                <code className="font-mono">SESSION_SECRET</code> in this
+                environment and try again.
               </p>
             </div>
           )}

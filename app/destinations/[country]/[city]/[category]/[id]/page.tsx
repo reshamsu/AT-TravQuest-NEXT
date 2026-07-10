@@ -36,7 +36,8 @@ import { RiGalleryView2 } from "react-icons/ri";
 import { supabase } from "@/lib/supabase";
 
 interface Item {
-  id: number;
+  id: string | number;
+  ref_id?: string;
   title: string;
   subtitle?: string;
   tagline?: string;
@@ -81,30 +82,31 @@ const formatParam = (slug: string) =>
     )
     .join(" ") ?? "";
 
-const TABLE_MAP: Record<string, string> = {
-  hotels: "hotels",
-  hotel: "hotels",
-  stay: "hotels",
-  tours: "tours",
-  tour: "tours",
-  play: "tours",
-  packages: "packages",
-  package: "packages",
-  meetings: "meetings",
-  meeting: "meetings",
-  apartments: "apartments",
-  apartment: "apartments",
-  promotions: "promotions",
-  promotion: "promotions",
-  deals: "promotions",
-  visas: "visas",
-  visa: "visas",
-  shopping: "shop",
-  shop: "shop",
-  airports: "airports",
-  airport: "airports",
-  corporate: "corporate",
+const LISTING_TYPE_MAP: Record<string, string> = {
+  hotels: "Hotels",
+  hotel: "Hotels",
+  stay: "Hotels",
+  tours: "Tours",
+  tour: "Tours",
+  play: "Tours",
+  packages: "Packages",
+  package: "Packages",
+  meetings: "Meetings",
+  meeting: "Meetings",
+  apartments: "Apartments",
+  apartment: "Apartments",
+  promotions: "Promotions",
+  promotion: "Promotions",
+  deals: "Promotions",
+  visas: "Visas",
+  visa: "Visas",
+  shopping: "Shop",
+  shop: "Shop",
+  airports: "Transfers",
+  airport: "Transfers",
 };
+
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
 
 const CATEGORY_NAV = [
   { slug: "hotels", label: "Stay" },
@@ -143,7 +145,8 @@ const RICH_TEXT_CLASS =
   "[&_p:empty]:mb-1";
 
 interface RelatedItem {
-  id: number;
+  id: string | number;
+  ref_id?: string;
   title: string;
   subtitle?: string;
   tagline?: string;
@@ -154,27 +157,31 @@ interface RelatedItem {
 
 /* ─── Related Listings ─── */
 const RelatedListings = ({
-  table,
+  listingType,
   categorySlug,
   countrySlug,
   citySlug,
   currentId,
 }: {
-  table: string;
+  listingType: string;
   categorySlug: string;
   countrySlug: string;
   citySlug: string;
-  currentId: number;
+  currentId: string;
 }) => {
   const [related, setRelated] = useState<RelatedItem[]>([]);
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from(table)
-        .select("id,title,subtitle,tagline,price,status,image_urls")
-        .neq("id", currentId)
-        .limit(4);
+      let q = supabase
+        .from("ac_listings_travel")
+        .select("id,ref_id,title,subtitle,tagline,price,status,image_urls")
+        .eq("listing_type", listingType);
+      if (COMPANY) q = q.eq("company", COMPANY);
+      q = /^\d+$/.test(currentId)
+        ? q.neq("ref_id", currentId)
+        : q.neq("id", currentId);
+      const { data } = await q.limit(4);
       if (!data) return;
       setRelated(
         data.map((d) => ({
@@ -192,7 +199,7 @@ const RelatedListings = ({
       );
     };
     load();
-  }, [table, currentId]);
+  }, [listingType, currentId]);
 
   if (!related.length) return null;
 
@@ -224,7 +231,7 @@ const RelatedListings = ({
           return (
             <Link
               key={r.id}
-              href={`/destinations/${countrySlug}/${citySlug}/${categorySlug}/${r.id}`}
+              href={`/destinations/${countrySlug}/${citySlug}/${categorySlug}/${r.ref_id ?? r.id}`}
               className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 hover:border-[#f2836f]/25 transition-all duration-500"
             >
               <div className="relative h-44 bg-gray-100 overflow-hidden">
@@ -319,10 +326,10 @@ const ItemDetailPage = () => {
   const categorySlug = params.category as string;
   const id = params.id as string;
 
-  const table = TABLE_MAP[categorySlug] ?? "tours";
-  const isPromotion = table === "promotions";
-  const isHotel = table === "hotels";
-  const isApartment = table === "apartments";
+  const listingType = LISTING_TYPE_MAP[categorySlug] ?? "Tours";
+  const isPromotion = listingType === "Promotions";
+  const isHotel = listingType === "Hotels";
+  const isApartment = listingType === "Apartments";
   const isHotelOrApartment = isHotel || isApartment;
 
 
@@ -339,11 +346,13 @@ const ItemDetailPage = () => {
     if (!id) return;
     const fetchItem = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from(table)
+      let q = supabase
+        .from("ac_listings_travel")
         .select("*")
-        .eq("id", id)
-        .single();
+        .eq("listing_type", listingType);
+      if (COMPANY) q = q.eq("company", COMPANY);
+      q = /^\d+$/.test(id) ? q.eq("ref_id", id) : q.eq("id", id);
+      const { data, error } = await q.single();
 
       if (error || !data) {
         console.error("Fetch error:", error?.message);
@@ -387,7 +396,7 @@ const ItemDetailPage = () => {
       setLoading(false);
     };
     fetchItem();
-  }, [id, table]);
+  }, [id, listingType]);
 
 
   const images = useMemo<string[]>(() => item?.image_urls ?? [], [item]);
@@ -451,7 +460,7 @@ const ItemDetailPage = () => {
     if (href === "#amenities")
       return isHotelOrApartment && (item?.amenities?.length ?? 0) > 0;
     if (href === "#itinerary") return !!item?.itinerary;
-    if (href === "#location") return table !== "visas";
+    if (href === "#location") return listingType !== "Visas";
     if (href === "#gallery") return images.length > 0;
     return true;
   });
@@ -486,7 +495,7 @@ const ItemDetailPage = () => {
       check_out: item.check_out,
       amenities: item.amenities,
       image_urls: item.image_urls,
-      listing_type: table,
+      listing_type: listingType,
     });
   };
 
@@ -1166,7 +1175,7 @@ const ItemDetailPage = () => {
               </div>
             )}
 
-            {table !== "visas" && (
+            {listingType !== "Visas" && (
               <div className="print:hidden">
                 <SectionCard
                   id="location"
@@ -1522,11 +1531,11 @@ const ItemDetailPage = () => {
         {/* ── Related Listings ── */}
         <div className="print:hidden">
           <RelatedListings
-            table={table}
+            listingType={listingType}
             categorySlug={categorySlug}
             countrySlug={countrySlug}
             citySlug={citySlug}
-            currentId={Number(id)}
+            currentId={id}
           />
         </div>
 

@@ -30,7 +30,7 @@ const CATEGORIES = [
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Discovery {
-  id: number;
+  id: string;
   created_at: string;
   category: string[];
   country: string[];
@@ -134,12 +134,12 @@ export default function DiscoveriesSection({ company }: { company: string }) {
   const [modal, setModal] = useState<{ open: boolean; mode: "add" | "edit" | "view"; data: Discovery | null }>({ open: false, mode: "add", data: null });
   const [form, setForm] = useState<DiscoveryForm>(blankForm(CATEGORIES[0]));
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const setF = <K extends keyof DiscoveryForm>(k: K, v: DiscoveryForm[K]) => setForm(p => ({ ...p, [k]: v }));
 
   const fetchDiscoveries = useCallback(async () => {
-    const { data, error } = await supabase.from("discoveries").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("ac_discoveries").select("*").order("created_at", { ascending: false });
     if (!error) setDiscoveries((data ?? []).map(r => normRow(r as Record<string, unknown>)));
   }, []);
 
@@ -161,18 +161,18 @@ export default function DiscoveriesSection({ company }: { company: string }) {
     setSaving(true);
     try {
       if (modal.mode === "edit" && modal.data) {
-        const { data, error } = await supabase.from("discoveries").update(form).eq("id", modal.data.id).select().single();
+        const { data, error } = await supabase.from("ac_discoveries").update(form).eq("id", modal.data.id).select().single();
         if (!error && data) setDiscoveries(p => p.map(d => d.id === modal.data!.id ? normRow(data as Record<string, unknown>) : d));
       } else {
-        const { data, error } = await supabase.from("discoveries").insert(form).select().single();
+        const { data, error } = await supabase.from("ac_discoveries").insert({ ...form, company }).select().single();
         if (!error && data) setDiscoveries(p => [normRow(data as Record<string, unknown>), ...p]);
       }
       closeModal();
     } finally { setSaving(false); }
   }
 
-  async function handleDelete(id: number) {
-    const { error } = await supabase.from("discoveries").delete().eq("id", id);
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from("ac_discoveries").delete().eq("id", id);
     if (!error) setDiscoveries(p => p.filter(d => d.id !== id));
   }
 

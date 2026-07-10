@@ -203,7 +203,7 @@ interface QuickSuggestion {
 }
 
 interface PopularDestination {
-  id: number;
+  id: string;
   slug: string;
   displayLabel: string;
   image: string;
@@ -279,7 +279,7 @@ const Hero = ({ initialData }: { initialData?: HeroSectionRow | null }) => {
   // Prefetch destinations for autocomplete
   useEffect(() => {
     supabase
-      .from("destinations")
+      .from("ac_destinations")
       .select("country, city")
       .neq("status", "Hidden")
       .then(({ data }) => {
@@ -291,10 +291,10 @@ const Hero = ({ initialData }: { initialData?: HeroSectionRow | null }) => {
   // Fetch popular destinations for modal discovery cards
   useEffect(() => {
     supabase
-      .from("destinations")
+      .from("ac_destinations")
       .select("id, country, city, image_urls, tagline")
       .neq("status", "Hidden")
-      .order("id", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(80)
       .then(({ data }) => {
         if (!data) return;

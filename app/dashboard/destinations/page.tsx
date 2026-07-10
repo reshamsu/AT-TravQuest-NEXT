@@ -42,7 +42,7 @@ const SECTION_FIELDS = [
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Destination {
-  id: number;
+  id: string;
   created_at: string;
   country: string;
   city: string;
@@ -188,12 +188,12 @@ export default function DestinationsPage() {
   const [activeTab, setActiveTab] = useState<FormTab>("basic");
   const [activeSection, setActiveSection] = useState<string>(SECTION_FIELDS[0].key);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const setF = <K extends keyof DestinationForm>(k: K, v: DestinationForm[K]) => setForm(p => ({ ...p, [k]: v }));
 
   const fetchDestinations = useCallback(async () => {
-    const { data, error } = await supabase.from("destinations").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("ac_destinations").select("*").order("created_at", { ascending: false });
     if (!error) setDestinations((data ?? []).map(r => normRow(r as Record<string, unknown>)));
   }, []);
 
@@ -251,19 +251,20 @@ export default function DestinationsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload = { ...form, title: form.city ? `${form.city}, ${form.country}` : form.country, company: activeCompany };
       if (modal.mode === "edit" && modal.data) {
-        const { data, error } = await supabase.from("destinations").update(form).eq("id", modal.data.id).select().single();
+        const { data, error } = await supabase.from("ac_destinations").update(payload).eq("id", modal.data.id).select().single();
         if (!error && data) setDestinations(p => p.map(d => d.id === modal.data!.id ? normRow(data as Record<string, unknown>) : d));
       } else {
-        const { data, error } = await supabase.from("destinations").insert(form).select().single();
+        const { data, error } = await supabase.from("ac_destinations").insert(payload).select().single();
         if (!error && data) setDestinations(p => [normRow(data as Record<string, unknown>), ...p]);
       }
       closeModal();
     } finally { setSaving(false); }
   }
 
-  async function handleDelete(id: number) {
-    const { error } = await supabase.from("destinations").delete().eq("id", id);
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from("ac_destinations").delete().eq("id", id);
     if (!error) setDestinations(p => p.filter(d => d.id !== id));
   }
 

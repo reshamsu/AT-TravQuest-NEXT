@@ -72,10 +72,10 @@ const Footer = () => {
 
   useEffect(() => {
     supabase
-      .from("destinations")
+      .from("ac_destinations")
       .select("country, city")
       .neq("status", "Hidden")
-      .order("id", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(80)
       .then(({ data }) => {
         if (!data) return;

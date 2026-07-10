@@ -9,7 +9,7 @@ import { useParams } from "next/navigation";
 import { TbArrowUpRight } from "react-icons/tb";
 
 interface Discover {
-  id: number;
+  id: string;
   category: string[];
   country: string[];
   city: string[];
@@ -190,7 +190,7 @@ export default function Discoveries() {
   const [discoveries, setDiscoveries] = useState<Discover[]>([]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [loading, setLoading] = useState(true);
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== "undefined"
       ? window.matchMedia("(min-width: 1024px)").matches
@@ -219,13 +219,14 @@ export default function Discoveries() {
 
       const [discoveriesRes, promotionsRes] = await Promise.all([
         supabase
-          .from("discoveries")
+          .from("ac_discoveries")
           .select("*")
           .contains("city", [formattedCity])
-          .order("id", { ascending: true }),
+          .order("created_at", { ascending: true }),
         supabase
-          .from("promotions")
+          .from("ac_listings_travel")
           .select("id, title, subtitle, country, city, category, image_urls")
+          .eq("listing_type", "Promotions")
           .contains("city", [formattedCity])
           .limit(1),
       ]);
@@ -251,7 +252,7 @@ export default function Discoveries() {
         promoRow && !hasPromoEntry
           ? [
               {
-                id: -1,
+                id: "promo-fallback",
                 category: ["Promotions"],
                 country: Array.isArray(promoRow.country)
                   ? promoRow.country

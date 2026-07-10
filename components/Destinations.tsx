@@ -9,7 +9,7 @@ import { TbArrowUpRight, TbChevronLeft, TbChevronRight } from "react-icons/tb";
 import type { DestinationRow } from "@/lib/useHomeData";
 
 interface Destination {
-  id: number;
+  id: string;
   country: string;
   city: string;
   tagline: string;
@@ -210,11 +210,7 @@ const processDestinations = (raw: DestinationRow[]): Destination[] => {
     return 2;
   };
 
-  return processed.sort((a, b) => {
-    const orderDiff = continentOrder(a) - continentOrder(b);
-    if (orderDiff !== 0) return orderDiff;
-    return a.id - b.id;
-  });
+  return processed.sort((a, b) => continentOrder(a) - continentOrder(b));
 };
 
 const Destination: React.FC<{ initialData?: DestinationRow[] }> = ({ initialData }) => {
@@ -235,10 +231,10 @@ const Destination: React.FC<{ initialData?: DestinationRow[] }> = ({ initialData
 
     const fetchDestinations = async () => {
       const { data, error } = await supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
-        .order("id", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error(error.message);

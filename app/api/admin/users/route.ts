@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireRole } from "@/lib/auth-guard";
+import { hashPassword } from "@/lib/password";
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(req, "manager");
@@ -24,16 +25,20 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => ({}));
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password: _password, company, ...rest } = body as Record<string, unknown> & { company?: string };
+  const { password, company, ...rest } = body as Record<string, unknown> & { company?: string; password?: string };
   const { name, email, role } = rest as { name?: string; email?: string; phone?: string; role?: string; status?: string };
   if (!name || !email || !role) {
     return NextResponse.json({ error: "name, email and role are required" }, { status: 400 });
   }
+  if (!password || typeof password !== "string" || password.length < 6) {
+    return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+  }
+
+  const password_hash = await hashPassword(password);
 
   const { data, error } = await supabaseAdmin
     .from("ac_users")
-    .insert([{ ...rest, company: company || auth.session.company }])
+    .insert([{ ...rest, password_hash, company: company || auth.session.company }])
     .select()
     .single();
 

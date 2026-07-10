@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { TbSearch, TbMapPin, TbArrowLeft } from "react-icons/tb";
 
 interface Destination {
-  id: number;
+  id: string;
   country: string;
   city: string;
   tagline: string;
@@ -49,13 +49,13 @@ function SearchResults() {
       setLoading(true);
 
       const { data, error } = await supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
         .or(
           `country.ilike.%${query}%,city.ilike.%${query}%,description.ilike.%${query}%,tagline.ilike.%${query}%`
         )
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (error) {
         console.error(error.message);

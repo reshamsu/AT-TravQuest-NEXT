@@ -6,10 +6,12 @@ import Image from "next/image";
 import {
   Plus, MapPin, Home, ArrowRight, Building2, TrendingUp, TrendingDown,
   Inbox, Mail, MessageSquare, ChevronRight, X, Globe, ExternalLink, Search,
+  UserPlus, UserCheck, UserX, Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCompany } from "./CompanyContext";
 import { useUser } from "./UserContext";
+import { canViewUsers, canManageUsers } from "@/lib/permissions";
 
 interface Listing {
   id: number | string;
@@ -32,6 +34,14 @@ interface Contact {
   website: string | null;
   challenge: string;
   intent: string;
+  created_at: string;
+}
+
+interface PendingUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
   created_at: string;
 }
 
@@ -146,8 +156,9 @@ function ContactModal({ contact, onClose }: { contact: Contact; onClose: () => v
 }
 
 export default function DashboardOverview() {
-  const { userName } = useUser();
+  const { userName, role } = useUser();
   const { company } = useCompany();
+  const canReviewSignups = canViewUsers(role);
   const [greeting, setGreeting] = useState("");
   const [props, setProps] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,10 +211,50 @@ export default function DashboardOverview() {
     const q = contactSearch.toLowerCase();
     return !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.intent.toLowerCase().includes(q);
   });
+  const [now] = useState(() => Date.now());
   const newContactsThisWeek = useMemo(() => {
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     return contacts.filter((c) => new Date(c.created_at).getTime() >= weekAgo).length;
-  }, [contacts]);
+  }, [contacts, now]);
+
+  // ── Registration requests (pending ac_users, from /signup) ───────────────
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [pendingActingId, setPendingActingId] = useState<string | null>(null);
+
+  const fetchPendingUsers = useCallback(async () => {
+    if (!canReviewSignups) { setPendingLoading(false); return; }
+    const res = await fetch(`/api/admin/users?company=${encodeURIComponent(company.label)}`).catch(() => null);
+    if (!res?.ok) { setPendingLoading(false); return; }
+    const { users } = (await res.json()) as { users: (PendingUser & { status: string })[] };
+    setPendingUsers((users ?? []).filter((u) => u.status === "Pending"));
+    setPendingLoading(false);
+  }, [company.label, canReviewSignups]);
+
+  useEffect(() => {
+    fetchPendingUsers();
+    if (!canReviewSignups) return;
+    const id = setInterval(fetchPendingUsers, 15_000);
+    return () => clearInterval(id);
+  }, [fetchPendingUsers, canReviewSignups]);
+
+  async function handleApprovePending(id: string) {
+    setPendingActingId(id);
+    await fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Active" }),
+    }).catch(() => null);
+    setPendingUsers((p) => p.filter((u) => u.id !== id));
+    setPendingActingId(null);
+  }
+
+  async function handleRejectPending(id: string) {
+    setPendingActingId(id);
+    await fetch(`/api/admin/users/${id}`, { method: "DELETE" }).catch(() => null);
+    setPendingUsers((p) => p.filter((u) => u.id !== id));
+    setPendingActingId(null);
+  }
 
   const stats = useMemo(() => {
     const total = props.length;
@@ -300,67 +351,132 @@ export default function DashboardOverview() {
         ))}
       </div>
 
-      {/* Contact Inquiries */}
-      <div className="bg-white dark:bg-dk-surface rounded-2xl border border-gray-100 dark:border-dk-stroke overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 dark:border-dk-stroke gap-3 flex-wrap">
-          <div>
-            <h2 className="text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">Contact Inquiries</h2>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-              {contactsLoading ? "Loading…" : `${contacts.length} total · live`}
-            </p>
+      {/* Contact Inquiries + Registration Requests */}
+      <div className={`grid grid-cols-1 gap-4 ${canReviewSignups ? "xl:grid-cols-3" : ""}`}>
+        <div className={`bg-white dark:bg-dk-surface rounded-2xl border border-gray-100 dark:border-dk-stroke overflow-hidden flex flex-col ${canReviewSignups ? "xl:col-span-2" : ""}`}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 dark:border-dk-stroke gap-3 flex-wrap">
+            <div>
+              <h2 className="text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">Contact Inquiries</h2>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                {contactsLoading ? "Loading…" : `${contacts.length} total · live`}
+              </p>
+            </div>
+            <div className="relative flex items-center">
+              <Search size={11} className="absolute left-3 text-gray-400" />
+              <input
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                placeholder="Filter by name or intent…"
+                className="pl-8 pr-3 py-1.5 text-[11.5px] bg-gray-50 dark:bg-dk-raised border border-gray-200 dark:border-dk-stroke rounded-xl outline-none focus:border-[#00B5A3] focus:ring-2 focus:ring-[#00B5A3]/10 w-40 sm:w-48 placeholder:text-gray-400 transition-all"
+              />
+            </div>
           </div>
-          <div className="relative flex items-center">
-            <Search size={11} className="absolute left-3 text-gray-400" />
-            <input
-              value={contactSearch}
-              onChange={(e) => setContactSearch(e.target.value)}
-              placeholder="Filter by name or intent…"
-              className="pl-8 pr-3 py-1.5 text-[11.5px] bg-gray-50 dark:bg-dk-raised border border-gray-200 dark:border-dk-stroke rounded-xl outline-none focus:border-[#00B5A3] focus:ring-2 focus:ring-[#00B5A3]/10 w-40 sm:w-48 placeholder:text-gray-400 transition-all"
-            />
-          </div>
+
+          {contactsLoading ? (
+            <div className="px-6 py-10 text-center"><p className="text-[12px] text-gray-400">Loading inquiries…</p></div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="px-6 py-10 text-center flex flex-col items-center gap-3">
+              <Inbox size={24} className="text-gray-200 dark:text-gray-700" />
+              <p className="text-[12px] text-gray-400">
+                {contacts.length === 0 ? "No inquiries yet — form submissions appear here." : "No inquiries match your filter."}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50/80 dark:divide-gray-800">
+              {filteredContacts.slice(0, 6).map((c) => (
+                <div key={c.id} onClick={() => setSelectedContact(c)} className="flex items-center gap-3.5 px-6 py-3.5 hover:bg-gray-50/60 dark:hover:bg-dk-raised/50 transition-colors cursor-pointer">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#00B5A3] via-[#00B5A3] to-[#f2836f] flex items-center justify-center shrink-0">
+                    <span className="text-white text-[11px] font-bold">{initials(c.name)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-100 truncate">{c.name}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{c.business_name}</p>
+                  </div>
+                  <span className={`hidden xl:inline-flex text-[10px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${INTENT_COLORS[c.intent] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                    {c.intent}
+                  </span>
+                  <div className="hidden xl:flex items-center gap-2 shrink-0">
+                    <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-blue-50 hover:text-[#00B5A3] text-gray-400 transition-colors">
+                      <Mail size={11} />
+                    </a>
+                    {c.phone && (
+                      <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 text-gray-400 transition-colors">
+                        <MessageSquare size={11} />
+                      </a>
+                    )}
+                  </div>
+                  <ChevronRight size={13} className="text-gray-200 dark:text-gray-600 shrink-0" />
+                </div>
+              ))}
+            </div>
+          )}
+          {filteredContacts.length > 6 && (
+            <div className="px-6 py-3 border-t border-gray-50 dark:border-dk-stroke mt-auto">
+              <p className="text-[11px] text-gray-400">Showing 6 of {filteredContacts.length} inquiries</p>
+            </div>
+          )}
         </div>
 
-        {contactsLoading ? (
-          <div className="px-6 py-10 text-center"><p className="text-[12px] text-gray-400">Loading inquiries…</p></div>
-        ) : filteredContacts.length === 0 ? (
-          <div className="px-6 py-10 text-center flex flex-col items-center gap-3">
-            <Inbox size={24} className="text-gray-200 dark:text-gray-700" />
-            <p className="text-[12px] text-gray-400">
-              {contacts.length === 0 ? "No inquiries yet — form submissions appear here." : "No inquiries match your filter."}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-50/80 dark:divide-gray-800">
-            {filteredContacts.slice(0, 6).map((c) => (
-              <div key={c.id} onClick={() => setSelectedContact(c)} className="flex items-center gap-3.5 px-6 py-3.5 hover:bg-gray-50/60 dark:hover:bg-dk-raised/50 transition-colors cursor-pointer">
-                <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#00B5A3] via-[#00B5A3] to-[#f2836f] flex items-center justify-center shrink-0">
-                  <span className="text-white text-[11px] font-bold">{initials(c.name)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-100 truncate">{c.name}</p>
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{c.business_name}</p>
-                </div>
-                <span className={`hidden xl:inline-flex text-[10px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${INTENT_COLORS[c.intent] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                  {c.intent}
-                </span>
-                <div className="hidden xl:flex items-center gap-2 shrink-0">
-                  <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-blue-50 hover:text-[#00B5A3] text-gray-400 transition-colors">
-                    <Mail size={11} />
-                  </a>
-                  {c.phone && (
-                    <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 text-gray-400 transition-colors">
-                      <MessageSquare size={11} />
-                    </a>
-                  )}
-                </div>
-                <ChevronRight size={13} className="text-gray-200 dark:text-gray-600 shrink-0" />
+        {canReviewSignups && (
+          <div className="bg-white dark:bg-dk-surface rounded-2xl border border-gray-100 dark:border-dk-stroke overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-50 dark:border-dk-stroke">
+              <h2 className="text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">Registration Requests</h2>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                {pendingLoading ? "Loading…" : `${pendingUsers.length} awaiting approval`}
+              </p>
+            </div>
+
+            {pendingLoading ? (
+              <div className="px-6 py-10 text-center"><p className="text-[12px] text-gray-400">Loading requests…</p></div>
+            ) : pendingUsers.length === 0 ? (
+              <div className="px-6 py-10 text-center flex flex-col items-center gap-3">
+                <UserPlus size={24} className="text-gray-200 dark:text-gray-700" />
+                <p className="text-[12px] text-gray-400">No pending sign-ups right now.</p>
               </div>
-            ))}
-          </div>
-        )}
-        {filteredContacts.length > 6 && (
-          <div className="px-6 py-3 border-t border-gray-50 dark:border-dk-stroke mt-auto">
-            <p className="text-[11px] text-gray-400">Showing 6 of {filteredContacts.length} inquiries</p>
+            ) : (
+              <div className="divide-y divide-gray-50/80 dark:divide-gray-800">
+                {pendingUsers.slice(0, 6).map((u) => (
+                  <div key={u.id} className="flex items-center gap-3 px-6 py-3.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <span className="text-amber-700 dark:text-amber-400 text-[11px] font-bold">{initials(u.name)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-100 truncate">{u.name}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{u.email}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {pendingActingId === u.id ? (
+                        <Loader2 size={14} className="animate-spin text-gray-400" />
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleApprovePending(u.id)}
+                            title="Approve"
+                            className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                          >
+                            <UserCheck size={13} />
+                          </button>
+                          {canManageUsers(role) && (
+                            <button
+                              onClick={() => handleRejectPending(u.id)}
+                              title="Reject"
+                              className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-dk-raised flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                            >
+                              <UserX size={13} />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {pendingUsers.length > 6 && (
+              <div className="px-6 py-3 border-t border-gray-50 dark:border-dk-stroke mt-auto">
+                <p className="text-[11px] text-gray-400">Showing 6 of {pendingUsers.length} requests</p>
+              </div>
+            )}
           </div>
         )}
       </div>

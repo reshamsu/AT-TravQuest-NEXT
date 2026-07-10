@@ -9,7 +9,7 @@ import { useParams } from "next/navigation";
 import { TbArrowUpRight } from "react-icons/tb";
 
 interface Destination {
-  id: number;
+  id: string;
   country: string;
   city: string;
   tagline: string;
@@ -60,10 +60,10 @@ const Destination: React.FC = () => {
 
     const fetchDestinations = async () => {
       const { data, error } = await supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (error) {
         console.error("Error fetching destinations:", error.message);

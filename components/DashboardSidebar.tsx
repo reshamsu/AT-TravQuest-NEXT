@@ -137,8 +137,8 @@ export default function DashboardSidebar({ open, onClose }: Props) {
 
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-dk-stroke">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/favicon.ico" alt={appName} width={42} height={42} className="object-contain" />
-          <Image src="/tq-logo.png" alt={appName} width={98} height={14} className="object-contain" />
+          <Image src="/favicon.ico" alt={appName} width={40} height={14} className="object-contain" />
+          <Image src="/tq-logo.png" alt={appName} width={110} height={14} className="object-contain" />
         </Link>
         <button
           onClick={onClose}

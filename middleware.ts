@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseSession } from "@/lib/session";
 
 const PROTECTED = /^\/dashboard(\/|$)/;
-const AUTH_ROUTES = ["/login"];
+const AUTH_ROUTES = ["/login", "/signup"];
 
 // Paths we don't want to count as page views
 const SKIP = /^\/(api|_next|favicon|assets|.*\..*)/;

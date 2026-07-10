@@ -43,7 +43,7 @@ export default function NotificationBell() {
   }, [company.label]);
 
   useEffect(() => {
-    fetchContacts();
+    Promise.resolve().then(fetchContacts);
     const id = setInterval(fetchContacts, 20_000);
     return () => clearInterval(id);
   }, [fetchContacts]);

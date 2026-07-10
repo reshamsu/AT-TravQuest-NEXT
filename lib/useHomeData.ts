@@ -30,7 +30,7 @@ export interface TourRow {
 }
 
 export interface DestinationRow {
-  id: number;
+  id: string;
   country: string;
   city: string;
   tagline: string;
@@ -162,10 +162,10 @@ export function useHomeData() {
 
       // 3. Destinations
       const { data: destData } = await supabase
-        .from("destinations")
+        .from("ac_destinations")
         .select("*")
         .neq("status", "Hidden")
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (cancelled) return;
       setData((prev) => ({
