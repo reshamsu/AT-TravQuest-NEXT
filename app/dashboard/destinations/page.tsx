@@ -9,6 +9,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ComboInput from "@/components/ui/ComboInput";
 import { useCompany } from "../CompanyContext";
 import { supabase } from "@/lib/supabase";
+import { apiInsert, apiUpdate, apiDelete } from "@/lib/dashboard-api";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 
 // ─── Styles — matches app/dashboard/pages/page.tsx exactly ───────────────────
 
@@ -87,25 +89,19 @@ function normRow(r: Record<string, unknown>): Destination {
 
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
-async function uploadImage(file: File, company: string): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("folder", "destinations");
-  fd.append("company", company);
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload failed");
-  return ((await res.json()) as { url: string }).url;
+function uploadImage(file: File): Promise<string> {
+  return uploadToR2(file, "destinations");
 }
 
-function ImageUploadField({ label, images, company, onChange }: {
-  label: string; images: string[]; company: string; onChange: (imgs: string[]) => void;
+function ImageUploadField({ label, images, onChange }: {
+  label: string; images: string[]; onChange: (imgs: string[]) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setUploading(true);
-    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f, company))))]); }
+    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f))))]); }
     catch { /* ignore */ }
     finally { setUploading(false); }
   }
@@ -253,18 +249,18 @@ export default function DestinationsPage() {
     try {
       const payload = { ...form, title: form.city ? `${form.city}, ${form.country}` : form.country, company: activeCompany };
       if (modal.mode === "edit" && modal.data) {
-        const { data, error } = await supabase.from("ac_destinations").update(payload).eq("id", modal.data.id).select().single();
-        if (!error && data) setDestinations(p => p.map(d => d.id === modal.data!.id ? normRow(data as Record<string, unknown>) : d));
+        const { data, error } = await apiUpdate<Record<string, unknown>>("ac_destinations", modal.data.id, payload);
+        if (!error && data) setDestinations(p => p.map(d => d.id === modal.data!.id ? normRow(data) : d));
       } else {
-        const { data, error } = await supabase.from("ac_destinations").insert(payload).select().single();
-        if (!error && data) setDestinations(p => [normRow(data as Record<string, unknown>), ...p]);
+        const { data, error } = await apiInsert<Record<string, unknown>>("ac_destinations", payload);
+        if (!error && data) setDestinations(p => [normRow(data), ...p]);
       }
       closeModal();
     } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
-    const { error } = await supabase.from("ac_destinations").delete().eq("id", id);
+    const { error } = await apiDelete("ac_destinations", id);
     if (!error) setDestinations(p => p.filter(d => d.id !== id));
   }
 
@@ -514,8 +510,8 @@ export default function DestinationsPage() {
             {/* ── Images ── */}
             {activeTab === "images" && (
               <div className="space-y-5">
-                <ImageUploadField label="Hero Images" images={form.image_urls} company={activeCompany} onChange={imgs => setF("image_urls", imgs)} />
-                <ImageUploadField label="Collage Images" images={form.image_collages} company={activeCompany} onChange={imgs => setF("image_collages", imgs)} />
+                <ImageUploadField label="Hero Images" images={form.image_urls} onChange={imgs => setF("image_urls", imgs)} />
+                <ImageUploadField label="Collage Images" images={form.image_collages} onChange={imgs => setF("image_collages", imgs)} />
               </div>
             )}
 

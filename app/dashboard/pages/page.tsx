@@ -10,6 +10,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useIndustry } from "../IndustryContext";
 import { useCompany } from "../CompanyContext";
 import { supabase } from "@/lib/supabase";
+import { apiInsert, apiUpdate, apiDelete } from "@/lib/dashboard-api";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 import DiscoveriesSection from "../DiscoveriesSection";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -117,21 +119,14 @@ function secToForm(s: PageSection, co: string): SecForm {
 
 // ─── Image upload helper ──────────────────────────────────────────────────────
 
-async function uploadImage(file: File, company: string): Promise<string> {
-  const fd = new FormData();
-  fd.append("file",    file);
-  fd.append("folder",  "cms");
-  fd.append("company", company);
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload failed");
-  const { url } = await res.json();
-  return url as string;
+function uploadImage(file: File): Promise<string> {
+  return uploadToR2(file, "cms");
 }
 
 // ─── Image upload field ───────────────────────────────────────────────────────
 
-function ImageUploadField({ label, images, company, onChange }: {
-  label: string; images: string[]; company: string; onChange: (imgs: string[]) => void;
+function ImageUploadField({ label, images, onChange }: {
+  label: string; images: string[]; onChange: (imgs: string[]) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -139,7 +134,7 @@ function ImageUploadField({ label, images, company, onChange }: {
     if (!files.length) return;
     setUploading(true);
     try {
-      const urls = await Promise.all(files.map((f) => uploadImage(f, company)));
+      const urls = await Promise.all(files.map((f) => uploadImage(f)));
       onChange([...images, ...urls]);
     } catch { /* ignore */ }
     finally { setUploading(false); }
@@ -355,9 +350,9 @@ export default function PagesManagerPage() {
     const label = toTitle(addPageInput);
     if (!label) return;
     setAddPageSaving(true);
-    const { data } = await supabase.from("ac_pages")
-      .insert({ industry: industryId, label, sort_order: pages.length })
-      .select("id,label,sort_order").single();
+    const { data } = await apiInsert<{ id: string; label: string; sort_order: number }>(
+      "ac_pages", { industry: industryId, label, sort_order: pages.length },
+    );
     if (data) { setPages((p) => [...p, data]); setActivePage(data.id); setAddPageModal(false); }
     setAddPageSaving(false);
   }
@@ -365,16 +360,15 @@ export default function PagesManagerPage() {
   async function commitRename() {
     const val = toTitle(renameVal);
     if (!val || !renamingId) { setRenamingId(null); return; }
-    const { error } = await supabase.from("ac_pages")
-      .update({ label: val, updated_at: new Date().toISOString() }).eq("id", renamingId);
+    const { error } = await apiUpdate("ac_pages", renamingId, { label: val, updated_at: new Date().toISOString() });
     if (!error) setPages((p) => p.map((pg) => pg.id === renamingId ? { ...pg, label: val } : pg));
     setRenamingId(null);
   }
 
   async function deletePage(id: string) {
-    await supabase.from("ac_heroes").delete().eq("page_id", id);
-    await supabase.from("ac_sections").delete().eq("page_id", id);
-    await supabase.from("ac_pages").delete().eq("id", id);
+    await apiDelete("ac_heroes", id, "page_id");
+    await apiDelete("ac_sections", id, "page_id");
+    await apiDelete("ac_pages", id);
     setPages((p) => { const rest = p.filter((pg) => pg.id !== id); if (activePage === id) setActivePage(rest[0]?.id ?? ""); return rest; });
     setHeroes((h) => h.filter((h) => h.page_id !== id));
     setSections((s) => s.filter((s) => s.page_id !== id));
@@ -400,17 +394,17 @@ export default function PagesManagerPage() {
       updated_at:  new Date().toISOString(),
     };
     if (heroModal.mode === "edit" && heroModal.data) {
-      const { data } = await supabase.from("ac_heroes").update(payload).eq("id", heroModal.data.id).select().single();
+      const { data } = await apiUpdate<HeroSection>("ac_heroes", heroModal.data.id, payload);
       if (data) { setHeroes((p) => p.map((h) => h.id === heroModal.data!.id ? data : h)); setHeroModal({ open: false, mode: "add", data: null }); }
     } else {
-      const { data } = await supabase.from("ac_heroes").insert(payload).select().single();
+      const { data } = await apiInsert<HeroSection>("ac_heroes", payload);
       if (data) { setHeroes((p) => [...p, data]); setHeroModal({ open: false, mode: "add", data: null }); }
     }
     setHeroSaving(false);
   }
 
   async function deleteHero(id: string) {
-    const { error } = await supabase.from("ac_heroes").delete().eq("id", id);
+    const { error } = await apiDelete("ac_heroes", id);
     if (!error) setHeroes((p) => p.filter((h) => h.id !== id));
   }
 
@@ -433,17 +427,17 @@ export default function PagesManagerPage() {
       updated_at:  new Date().toISOString(),
     };
     if (sectionModal.mode === "edit" && sectionModal.data) {
-      const { data } = await supabase.from("ac_sections").update(payload).eq("id", sectionModal.data.id).select().single();
+      const { data } = await apiUpdate<PageSection>("ac_sections", sectionModal.data.id, payload);
       if (data) { setSections((p) => p.map((s) => s.id === sectionModal.data!.id ? data : s)); setSectionModal({ open: false, mode: "add", data: null }); }
     } else {
-      const { data } = await supabase.from("ac_sections").insert(payload).select().single();
+      const { data } = await apiInsert<PageSection>("ac_sections", payload);
       if (data) { setSections((p) => [...p, data]); setSectionModal({ open: false, mode: "add", data: null }); }
     }
     setSecSaving(false);
   }
 
   async function deleteSection(id: string) {
-    const { error } = await supabase.from("ac_sections").delete().eq("id", id);
+    const { error } = await apiDelete("ac_sections", id);
     if (!error) setSections((p) => p.filter((s) => s.id !== id));
   }
 
@@ -813,7 +807,7 @@ export default function PagesManagerPage() {
               placeholder="Enter a description paragraph…"
               multiline
             />
-            <ImageUploadField label="Hero Images" images={heroForm.images} company={activeCompany} onChange={(imgs) => setHeroForm((p) => ({ ...p, images: imgs }))} />
+            <ImageUploadField label="Hero Images" images={heroForm.images} onChange={(imgs) => setHeroForm((p) => ({ ...p, images: imgs }))} />
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => setHeroModal({ open: false, mode: "add", data: null })} className="px-4 py-2 text-[12px] font-semibold text-gray-600 bg-gray-100 dark:bg-dk-raised dark:text-gray-400 rounded-xl hover:bg-gray-200 transition-all">Cancel</button>
               <button type="submit" disabled={heroSaving} className="btn-primary-sm flex items-center gap-1.5">
@@ -897,7 +891,7 @@ export default function PagesManagerPage() {
               placeholder="Enter a description paragraph…"
               multiline
             />
-            <ImageUploadField label="Section Images" images={secForm.images} company={activeCompany} onChange={(imgs) => setSecForm((p) => ({ ...p, images: imgs }))} />
+            <ImageUploadField label="Section Images" images={secForm.images} onChange={(imgs) => setSecForm((p) => ({ ...p, images: imgs }))} />
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => setSectionModal({ open: false, mode: "add", data: null })} className="px-4 py-2 text-[12px] font-semibold text-gray-600 bg-gray-100 dark:bg-dk-raised dark:text-gray-400 rounded-xl hover:bg-gray-200 transition-all">Cancel</button>
               <button type="submit" disabled={secSaving} className="btn-primary-sm flex items-center gap-1.5">

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useUser } from "@/app/dashboard/UserContext";
 import { useCompany } from "@/app/dashboard/CompanyContext";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 
 const TABS = ["General", "Notifications", "Security", "Integrations"];
 
@@ -120,16 +121,12 @@ export default function SettingsPage() {
     const setUrl     = key === "avatar_url" ? setAvatarUrl     : setLogoUrl;
     setLoading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res  = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
-      setUrl(data.url);
+      const url = await uploadToR2(file, "settings");
+      setUrl(url);
       await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: data.url }),
+        body: JSON.stringify({ [key]: url }),
       });
     } catch (err) {
       console.error(err);

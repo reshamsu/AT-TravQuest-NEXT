@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ROLE_DB_TO_KEY, ROLE_RANK, type Role } from "@/lib/permissions";
 import { verifyPassword } from "@/lib/password";
 
@@ -12,7 +12,7 @@ interface AcUserRow {
 }
 
 async function findUserRows(email: string): Promise<AcUserRow[]> {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from("ac_users")
     .select("email, role, status, company, password_hash, name")
     .ilike("email", email);

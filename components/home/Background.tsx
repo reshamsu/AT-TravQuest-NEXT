@@ -33,16 +33,27 @@ const ExploreSection = ({ initialData }: { initialData?: BackgroundRow | null })
         .eq("section_number", 2)
         .single();
 
-      if (!error && row) {
-        const descriptions = Array.isArray(row.descriptions) ? row.descriptions : [];
-        setData({
-          explore_title: row.title ?? "",
-          explore_subtitle: row.subtitle ?? "",
-          explore_body: descriptions[0] ?? row.description ?? "",
-          image_explores: Array.isArray(row.images) ? row.images : [],
-        });
-        setIsLoaded(true);
+      if (error) {
+        console.error("[Background] ac_sections fetch failed:", error.message);
+        return;
       }
+      if (!row) {
+        console.warn('[Background] No ac_sections row for page_id="home", section_number=2 — the Explore UAE banner has no content saved yet.');
+        return;
+      }
+
+      const descriptions = Array.isArray(row.descriptions) ? row.descriptions : [];
+      const images = Array.isArray(row.images) ? row.images : [];
+      if (images.length === 0) {
+        console.warn('[Background] ac_sections row for "home" section 2 has no images uploaded.');
+      }
+      setData({
+        explore_title: row.title ?? "",
+        explore_subtitle: row.subtitle ?? "",
+        explore_body: descriptions[0] ?? row.description ?? "",
+        image_explores: images,
+      });
+      setIsLoaded(true);
     };
 
     fetchData();

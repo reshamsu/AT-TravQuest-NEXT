@@ -9,7 +9,7 @@ import { TbStarFilled, TbStar, TbArrowRight, TbMapPin } from "react-icons/tb";
 import type { PromoRow } from "@/lib/useHomeData";
 
 interface Promo {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   country: string[];
@@ -101,6 +101,8 @@ const saleLabels: [string, number, number][][] = [
 ];
 
 const beachPositions = ["0% 50%", "33% 50%", "66% 50%", "100% 50%"];
+
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
 
 function PromoCard({
   promo,
@@ -255,10 +257,12 @@ export default function Promo({ initialData }: { initialData?: PromoRow[] }) {
   useEffect(() => {
     if (initialData?.length) return;
     const fetchPromos = async () => {
-      const { data, error } = await supabase
-        .from("promotions")
+      let q = supabase
+        .from("ac_listings_travel")
         .select("*")
-        .order("id", { ascending: true });
+        .eq("listing_type", "Promotions");
+      if (COMPANY) q = q.eq("company", COMPANY);
+      const { data, error } = await q.order("created_at", { ascending: true });
       if (error) {
         console.error("Error fetching promotions:", error.message);
         setAllPromos([]);

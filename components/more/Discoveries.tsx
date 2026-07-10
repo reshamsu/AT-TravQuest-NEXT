@@ -9,7 +9,7 @@ import { TbArrowUpRight } from "react-icons/tb";
 import { useParams } from "next/navigation";
 
 interface DiscoveryItem {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   country: string | string[];
@@ -48,6 +48,8 @@ const slugify = (text: string | null | undefined) =>
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
+
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
 
 const toStr = (v: string | string[]): string =>
   Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
@@ -113,23 +115,20 @@ function DiscoveriesInner({ slug }: { slug: string }) {
     const fetchAll = async () => {
       setLoading(true);
 
+      const baseQuery = (listingType: string) => {
+        let q = supabase
+          .from("ac_listings_travel")
+          .select("id, title, subtitle, country, city, category, image_urls")
+          .eq("listing_type", listingType);
+        if (COMPANY) q = q.eq("company", COMPANY);
+        return q.limit(5);
+      };
+
       const [airports, visas, meetings, promotions] = await Promise.all([
-        supabase
-          .from("airports")
-          .select("id, title, subtitle, country, city, category, image_urls")
-          .limit(5),
-        supabase
-          .from("visas")
-          .select("id, title, subtitle, country, city, category, image_urls")
-          .limit(5),
-        supabase
-          .from("meetings")
-          .select("id, title, subtitle, country, city, category, image_urls")
-          .limit(5),
-        supabase
-          .from("promotions")
-          .select("id, title, subtitle, country, city, category, image_urls")
-          .limit(5),
+        baseQuery("Transfers"),
+        baseQuery("Visas"),
+        baseQuery("Meetings"),
+        baseQuery("Promotions"),
       ]);
 
       const merged: DiscoveryItem[] = [

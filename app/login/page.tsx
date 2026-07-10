@@ -595,6 +595,18 @@ function LoginContent() {
             </>
           )}
 
+          {step === "credentials" && (
+            <p className="mt-6 text-center text-sm font-medium text-[#6b5e4e]">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/signup"
+                className="text-[#f2836f] font-semibold hover:text-[#e06d59] transition-colors"
+              >
+                Create an account
+              </Link>
+            </p>
+          )}
+
           <p className="mt-8 text-center text-[11px] text-[#b0a89d] leading-relaxed">
             By continuing, you agree to TravQuest&apos;s{" "}
             <Link href="/terms" className="underline transition-colors">

@@ -17,7 +17,7 @@ export interface HeroSectionRow {
 }
 
 export interface TourRow {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   country: string[];
@@ -63,7 +63,7 @@ export interface BackgroundRow {
 }
 
 export interface PromoRow {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   country: string[];
@@ -101,6 +101,8 @@ const normalizeImages = (value: unknown): string[] => {
   }
   return [];
 };
+
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
 
 export function useHomeData() {
   const [data, setData] = useState<HomeData>({
@@ -145,10 +147,12 @@ export function useHomeData() {
       }
 
       // 2. Tours
-      const { data: toursData } = await supabase
-        .from("tours")
+      let toursQ = supabase
+        .from("ac_listings_travel")
         .select("*")
-        .order("id", { ascending: true });
+        .eq("listing_type", "Tours");
+      if (COMPANY) toursQ = toursQ.eq("company", COMPANY);
+      const { data: toursData } = await toursQ.order("created_at", { ascending: true });
 
       if (cancelled) return;
       setData((prev) => ({
@@ -236,10 +240,12 @@ export function useHomeData() {
       }
 
       // 7. Promos
-      const { data: promosData } = await supabase
-        .from("promotions")
+      let promosQ = supabase
+        .from("ac_listings_travel")
         .select("*")
-        .order("id", { ascending: true });
+        .eq("listing_type", "Promotions");
+      if (COMPANY) promosQ = promosQ.eq("company", COMPANY);
+      const { data: promosData } = await promosQ.order("created_at", { ascending: true });
 
       if (cancelled) return;
       setData((prev) => ({

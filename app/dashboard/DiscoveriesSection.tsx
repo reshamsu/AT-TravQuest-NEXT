@@ -7,6 +7,8 @@ import {
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { supabase } from "@/lib/supabase";
+import { apiInsert, apiUpdate, apiDelete } from "@/lib/dashboard-api";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 
 // ─── Styles — matches app/dashboard/pages/page.tsx exactly ───────────────────
 
@@ -76,25 +78,19 @@ function TagInput({ label, values, onChange, placeholder }: {
 
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
-async function uploadImage(file: File, company: string): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("folder", "discoveries");
-  fd.append("company", company);
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload failed");
-  return ((await res.json()) as { url: string }).url;
+function uploadImage(file: File): Promise<string> {
+  return uploadToR2(file, "discoveries");
 }
 
-function ImageUploadField({ label, images, company, onChange }: {
-  label: string; images: string[]; company: string; onChange: (imgs: string[]) => void;
+function ImageUploadField({ label, images, onChange }: {
+  label: string; images: string[]; onChange: (imgs: string[]) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setUploading(true);
-    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f, company))))]); }
+    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f))))]); }
     catch { /* ignore */ }
     finally { setUploading(false); }
   }
@@ -161,18 +157,18 @@ export default function DiscoveriesSection({ company }: { company: string }) {
     setSaving(true);
     try {
       if (modal.mode === "edit" && modal.data) {
-        const { data, error } = await supabase.from("ac_discoveries").update(form).eq("id", modal.data.id).select().single();
-        if (!error && data) setDiscoveries(p => p.map(d => d.id === modal.data!.id ? normRow(data as Record<string, unknown>) : d));
+        const { data, error } = await apiUpdate<Record<string, unknown>>("ac_discoveries", modal.data.id, form);
+        if (!error && data) setDiscoveries(p => p.map(d => d.id === modal.data!.id ? normRow(data) : d));
       } else {
-        const { data, error } = await supabase.from("ac_discoveries").insert({ ...form, company }).select().single();
-        if (!error && data) setDiscoveries(p => [normRow(data as Record<string, unknown>), ...p]);
+        const { data, error } = await apiInsert<Record<string, unknown>>("ac_discoveries", { ...form, company });
+        if (!error && data) setDiscoveries(p => [normRow(data), ...p]);
       }
       closeModal();
     } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
-    const { error } = await supabase.from("ac_discoveries").delete().eq("id", id);
+    const { error } = await apiDelete("ac_discoveries", id);
     if (!error) setDiscoveries(p => p.filter(d => d.id !== id));
   }
 
@@ -327,7 +323,7 @@ export default function DiscoveriesSection({ company }: { company: string }) {
               <label className={FIELD}>Intro Body</label>
               <textarea rows={3} className={TEXTAREA} value={form.intro_body} onChange={e => setF("intro_body", e.target.value)} />
             </div>
-            <ImageUploadField label="Images" images={form.image_urls} company={company} onChange={(imgs) => setF("image_urls", imgs)} />
+            <ImageUploadField label="Images" images={form.image_urls} onChange={(imgs) => setF("image_urls", imgs)} />
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={closeModal} className="px-4 py-2 text-[12px] font-semibold text-gray-600 bg-gray-100 dark:bg-dk-raised dark:text-gray-400 rounded-xl hover:bg-gray-200 transition-all">Cancel</button>
               <button type="submit" disabled={saving} className="btn-primary-sm flex items-center gap-1.5">

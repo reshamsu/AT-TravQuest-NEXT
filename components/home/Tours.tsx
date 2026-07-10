@@ -10,7 +10,7 @@ import { TbStar, TbStarFilled } from "react-icons/tb";
 import type { TourRow } from "@/lib/useHomeData";
 
 interface Tour {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   country: string[];
@@ -99,6 +99,8 @@ const normalizeImages = (value: unknown): string[] => {
   return [];
 };
 
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY;
+
 export default function Packages({ initialData }: { initialData?: TourRow[] }) {
   const router = useRouter();
   const [activeCity, setActiveCity] = useState<"Dubai" | "Abu Dhabi">("Dubai");
@@ -128,10 +130,12 @@ export default function Packages({ initialData }: { initialData?: TourRow[] }) {
     if (initialData?.length) return;
 
     const fetchPackages = async () => {
-      const { data, error } = await supabase
-        .from("tours")
+      let q = supabase
+        .from("ac_listings_travel")
         .select("*")
-        .order("id", { ascending: true });
+        .eq("listing_type", "Tours");
+      if (COMPANY) q = q.eq("company", COMPANY);
+      const { data, error } = await q.order("created_at", { ascending: true });
 
       if (error) {
         console.error("Error fetching packages:", error.message);

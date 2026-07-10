@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSiteSettings } from "@/lib/site-settings";
 
 interface ContactPayload {
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { error } = await supabase.from("ac_contact").insert({
+  const { error } = await supabaseAdmin.from("ac_contact").insert({
     name,
     email,
     phone: phone || null,

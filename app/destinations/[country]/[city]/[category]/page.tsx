@@ -598,16 +598,6 @@ const CategoryPage = () => {
   const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
 
-  interface DiscoverItem {
-    id: number;
-    category: string[];
-    country: string[];
-    city: string[];
-    tagline: string;
-    image_urls: string[];
-  }
-  const [, setDiscoverItems] = useState<DiscoverItem[]>([]);
-
   const activeCategories =
     config.staticCategories.length > 0
       ? config.staticCategories
@@ -798,17 +788,6 @@ const CategoryPage = () => {
     fetchItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countrySlug, citySlug, categorySlug]);
-
-  useEffect(() => {
-    if (!cityLabel || isAllCities) return;
-    supabase
-      .from("discoveries")
-      .select("id,category,country,city,tagline,image_urls")
-      .contains("city", [cityLabel])
-      .order("id", { ascending: true })
-      .limit(20)
-      .then(({ data }) => setDiscoverItems(data ?? []));
-  }, [cityLabel, isAllCities]);
 
   const filteredItems = useMemo(() => {
     let result = [...items];
@@ -1568,67 +1547,6 @@ const CategoryPage = () => {
               </div>
             )}
           </div>
-
-          {/* ── Discoveries sidebar ──
-          {(loading || discoverItems.length > 0) && (
-            <aside className="flex flex-col gap-3 w-full lg:w-60 shrink-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-              <p className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">
-                More of <span className="text-[#f2836f]">{cityLabel}</span>
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-1 gap-3">
-                {loading
-                  ? Array.from({ length: 4 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="group relative rounded-2xl overflow-hidden h-28 shadow-sm"
-                      />
-                    ))
-                  : discoverItems.map((disc, index) => {
-                      const route = getDiscoveryRoute(disc);
-                      if (!route) return null;
-                      return (
-                        <motion.div
-                          key={disc.id}
-                          custom={index}
-                          variants={cardV}
-                          initial="hidden"
-                          animate="visible"
-                          className="group relative rounded-2xl overflow-hidden h-28 shadow-sm"
-                        >
-                          <Image
-                            src={
-                              disc.image_urls?.[0] ||
-                              "/assets/banner/property1.webp"
-                            }
-                            alt={disc.category?.[0] ?? "discovery"}
-                            fill
-                            sizes="208px"
-                            className="object-cover transition-transform duration-700 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-b from-[#f2836f]/20 to-black/80 group-hover:bg-black/64 transition-all duration-1000" />
-
-                          <div className="absolute inset-0 p-4 flex flex-col justify-between gap-1.5">
-                            <h3 className="playfair text-lg font-bold text-white leading-tight line-clamp-1">
-                              {disc.category?.[0]}
-                            </h3>
-                            <p className="text-[12px] font-semibold tracking-wide text-white/80 line-clamp-2 mb-0.5">
-                              {disc.tagline}
-                            </p>
-                          </div>
-
-                          <Link
-                            href={`/destinations/${countrySlug}/${citySlug}/${route}`}
-                            className="absolute top-3 right-3 w-8 h-8 bg-white/15 group-hover:bg-[#f2836f]/80 border border-white/20 hover:border-[#f2836f]/40 group-hover:scale-110 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-500"
-                          >
-                            <TbArrowUpRight size={18} className="text-white" />
-                          </Link>
-                        </motion.div>
-                      );
-                    })}
-              </div>
-            </aside>
-          )} */}
         </div>
 
         {/* Back to top */}

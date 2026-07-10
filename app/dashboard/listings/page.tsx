@@ -14,6 +14,8 @@ import { FaWhatsapp } from "react-icons/fa";
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { supabase } from "@/lib/supabase";
+import { apiInsert, apiUpdate, apiDelete } from "@/lib/dashboard-api";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 import { useIndustry } from "@/app/dashboard/IndustryContext";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -117,14 +119,8 @@ function arrWrap(s: string): string[] { return s ? [s] : []; }
 
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
-async function uploadImage(file: File): Promise<string> {
-  const fd = new FormData();
-  fd.append("file",    file);
-  fd.append("folder",  "listings");
-  fd.append("company", process.env.NEXT_PUBLIC_COMPANY ?? "");
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload failed");
-  return ((await res.json()) as { url: string }).url;
+function uploadImage(file: File): Promise<string> {
+  return uploadToR2(file, "listings");
 }
 
 function ImageUploadField({
@@ -509,18 +505,17 @@ function ListingsPageContent() {
       const cityArr    = arrWrap(form.city);
       const countryArr = arrWrap(form.country);
       if (modal.mode === "edit" && modal.data) {
-        const { data, error } = await supabase
-          .from(tableFor()).update({ ...form, city: cityArr, country: countryArr }).eq("id", modal.data.id).select().single();
-        if (error) { setSaveError(error.message); return; }
-        if (data) setListings(p => p.map(l => l.id === modal.data!.id ? normRow({ ...l as unknown as Record<string, unknown>, ...data as Record<string, unknown> }) : l));
+        const { data, error } = await apiUpdate<Record<string, unknown>>(
+          tableFor(), modal.data.id, { ...form, city: cityArr, country: countryArr },
+        );
+        if (error) { setSaveError(error); return; }
+        if (data) setListings(p => p.map(l => l.id === modal.data!.id ? normRow({ ...l as unknown as Record<string, unknown>, ...data }) : l));
       } else {
-        const { data, error } = await supabase
-          .from(tableFor())
-          .insert({ ...form, industry: industryId, city: cityArr, country: countryArr })
-          .select("id,created_at,client_name,industry,title,address,city,state,country,location,listing_type,category,status,price,full_price,agent,image_urls")
-          .single();
-        if (error) { setSaveError(error.message); return; }
-        if (data) setListings(p => [normRow(data as Record<string, unknown>), ...p]);
+        const { data, error } = await apiInsert<Record<string, unknown>>(
+          tableFor(), { ...form, industry: industryId, city: cityArr, country: countryArr },
+        );
+        if (error) { setSaveError(error); return; }
+        if (data) setListings(p => [normRow(data), ...p]);
       }
       setSaveSuccess(true);
       setTimeout(closeModal, 800);
@@ -530,7 +525,7 @@ function ListingsPageContent() {
   // ── Delete ────────────────────────────────────────────────────────────────
 
   async function handleDelete(id: number) {
-    const { error } = await supabase.from(tableFor()).delete().eq("id", id);
+    const { error } = await apiDelete(tableFor(), id);
     if (!error) setListings(p => p.filter(l => l.id !== id));
   }
 

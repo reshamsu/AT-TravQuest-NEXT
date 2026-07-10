@@ -14,8 +14,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ImageSlider from "@/components/ui/ImageSlider";
 import RichTextEditor from "@/components/RichTextEditor";
 import { supabase } from "@/lib/supabase";
+import { uploadImage as uploadToR2 } from "@/lib/upload";
 import { useIndustry } from "@/app/dashboard/IndustryContext";
-import { useCompany } from "@/app/dashboard/CompanyContext";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -108,17 +108,11 @@ function arrWrap(s: string): string[] { return s ? [s] : []; }
 
 // ─── Image upload ─────────────────────────────────────────────────────────────
 
-async function uploadImage(file: File, company = process.env.NEXT_PUBLIC_COMPANY ?? ""): Promise<string> {
-  const fd = new FormData();
-  fd.append("file",    file);
-  fd.append("folder",  "listings");
-  fd.append("company", company);
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload failed");
-  return ((await res.json()) as { url: string }).url;
+function uploadImage(file: File): Promise<string> {
+  return uploadToR2(file, "listings");
 }
 
-function ImageUploadField({ label, images, company, onChange }: { label: string; images: string[]; company: string; onChange: (v: string[]) => void }) {
+function ImageUploadField({ label, images, onChange }: { label: string; images: string[]; onChange: (v: string[]) => void }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
@@ -126,7 +120,7 @@ function ImageUploadField({ label, images, company, onChange }: { label: string;
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setUploading(true); setError(null);
-    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f, company))))]); }
+    try { onChange([...images, ...(await Promise.all(files.map(f => uploadImage(f))))]); }
     catch (err) { setError(err instanceof Error ? err.message : "Upload failed"); }
     finally { setUploading(false); }
   }
@@ -313,7 +307,6 @@ export default function ListingTypePage() {
   const params      = useParams<{ type: string }>();
   const router      = useRouter();
   const { industryId } = useIndustry();
-  const { company } = useCompany();
 
   const [customTypes,    setCustomTypes]    = useState<CustomListingType[]>(loadCustomListingTypes);
   const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>(loadListingLabelOverrides);
@@ -907,9 +900,9 @@ export default function ListingTypePage() {
 
             {activeTab === "images" && (
               <div className="space-y-5">
-                <ImageUploadField label="Hero Images" images={form.image_urls} company={company.label} onChange={imgs => setF("image_urls", imgs)} />
+                <ImageUploadField label="Hero Images" images={form.image_urls} onChange={imgs => setF("image_urls", imgs)} />
                 <p className="text-[11px] text-gray-400 -mt-3">First image is used as the main listing photo.</p>
-                <ImageUploadField label="Gallery Images" images={form.image_gallery} company={company.label} onChange={imgs => setF("image_gallery", imgs)} />
+                <ImageUploadField label="Gallery Images" images={form.image_gallery} onChange={imgs => setF("image_gallery", imgs)} />
                 <p className="text-[11px] text-gray-400 -mt-3">Additional interior and exterior photos shown in the gallery.</p>
               </div>
             )}
