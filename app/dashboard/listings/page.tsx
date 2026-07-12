@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { apiInsert, apiUpdate, apiDelete } from "@/lib/dashboard-api";
 import { uploadImage as uploadToR2 } from "@/lib/upload";
 import { useIndustry } from "@/app/dashboard/IndustryContext";
+import { useCompany } from "@/app/dashboard/CompanyContext";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -29,8 +30,6 @@ const SELECT   = `${INPUT} cursor-pointer`;
 interface Listing {
   id: number;
   created_at: string;
-  client_name: string;
-  industry: string;
   title: string;
   address: string;
   city: string;
@@ -53,21 +52,12 @@ interface Listing {
 
 type ListingForm = Omit<Listing, "id" | "created_at">;
 
-const INDUSTRIES = [
-  "Real Estate", "Hospitality", "Tourism & Travel", "Trade & Wholesale",
-  "Retail", "Manufacturing", "Healthcare", "Technology", "Agriculture",
-  "Construction", "Finance", "Education", "Transport & Logistics",
-  "Food & Beverage", "Energy",
-];
-
 // This project is travel only — every listing lives in ac_listings_travel.
 function tableFor(): string {
   return "ac_listings_travel";
 }
 
 const EMPTY_FORM: ListingForm = {
-  client_name: "",
-  industry: "",
   title: "",
   address: "",
   city: "",
@@ -329,7 +319,6 @@ function ListingListItem({ item, onOpen, onEdit, onDelete }: {
 
 function waShareUrl(item: Listing): string {
   const lines: string[] = [];
-  if (item.client_name) lines.push(`🏢 *${item.client_name}*`);
   lines.push(`🧳 *${item.title || item.address || "Travel Listing"}*`);
   if (item.listing_type) lines.push(`Type: ${item.listing_type}`);
   if (item.category?.length) lines.push(`Tags: ${item.category.join(", ")}`);
@@ -396,11 +385,11 @@ function ListingsGridCard({ item, onView, onEdit, onDelete }: {
 
 function ListingsPageContent() {
   const { industryId } = useIndustry();
+  const { company } = useCompany();
   const searchParams = useSearchParams();
   const [listings, setListings]     = useState<Listing[]>([]);
   const [loading, setLoading]       = useState(true);
   const [viewMode, setViewMode]     = useState<"list" | "grid">("list");
-  const [selectedClient, setSelectedClient] = useState<string>("__all__");
   const [typeFilter,     setTypeFilter]     = useState<string>("All");
   const [search,         setSearch]         = useState("");
 
@@ -427,10 +416,10 @@ function ListingsPageContent() {
   // ── Fetch list ────────────────────────────────────────────────────────────
 
   const fetchListings = useCallback(async () => {
-    const COLS = "id,created_at,client_name,industry,title,address,city,state,country,location,listing_type,category,status,price,full_price,agent,image_urls";
-    const { data, error } = await supabase.from(tableFor()).select(COLS).eq("industry", industryId).order("created_at", { ascending: false });
+    const COLS = "id,created_at,title,address,city,state,country,location,listing_type,category,status,price,full_price,agent,image_urls";
+    const { data, error } = await supabase.from(tableFor()).select(COLS).eq("industry", industryId).eq("company", company.label).order("created_at", { ascending: false });
     if (!error) setListings((data ?? []).map(r => normRow(r as Record<string, unknown>)));
-  }, [industryId]);
+  }, [industryId, company.label]);
 
   useEffect(() => {
     setLoading(true);
@@ -462,8 +451,6 @@ function ListingsPageContent() {
       setModal({ open: true, mode, data: normRow(full as Record<string, unknown>) });
       if (mode === "edit") {
         setForm({
-          client_name:   full.client_name   ?? "",
-          industry:      full.industry      ?? "",
           title:         full.title         ?? "",
           address:       full.address       ?? "",
           city:          strOf(full.city),
@@ -506,7 +493,7 @@ function ListingsPageContent() {
       const countryArr = arrWrap(form.country);
       if (modal.mode === "edit" && modal.data) {
         const { data, error } = await apiUpdate<Record<string, unknown>>(
-          tableFor(), modal.data.id, { ...form, city: cityArr, country: countryArr },
+          tableFor(), modal.data.id, { ...form, industry: industryId, city: cityArr, country: countryArr },
         );
         if (error) { setSaveError(error); return; }
         if (data) setListings(p => p.map(l => l.id === modal.data!.id ? normRow({ ...l as unknown as Record<string, unknown>, ...data }) : l));
@@ -531,14 +518,10 @@ function ListingsPageContent() {
 
   // ── Filters & stats ───────────────────────────────────────────────────────
 
-  const clientNames = [...new Set(listings.map(l => l.client_name).filter(Boolean))].sort();
-
   // Unique values for datalist autofill in the add/edit form
   const uniq = (fn: (l: Listing) => string) =>
     [...new Set(listings.map(fn).filter(Boolean))].sort();
   const dl = {
-    client_name:  uniq(l => l.client_name),
-    industry:     uniq(l => l.industry),
     city:         uniq(l => l.city),
     state:        uniq(l => l.state),
     country:      uniq(l => l.country),
@@ -569,50 +552,9 @@ function ListingsPageContent() {
     });
   }
 
-  // client_name → auto-fill agent (and location/city/state/country if blank)
-  const clientMap = Object.fromEntries(
-    listings
-      .filter(l => l.client_name)
-      .map(l => [l.client_name, { agent: l.agent, city: l.city, state: l.state, country: l.country, location: l.location, industry: l.industry }])
-  ) as Record<string, { agent: string; city: string; state: string; country: string; location: string; industry: string }>;
-
-  // clients filtered by whichever industry is selected in the form
-  const clientOptionsForForm = form.industry
-    ? [...new Set(listings.filter(l => l.industry === form.industry && l.client_name).map(l => l.client_name))].sort()
-    : dl.client_name;
-
-  function handleIndustryChange(val: string) {
-    setForm(p => {
-      const clientStillValid = !val || !p.client_name ||
-        listings.some(l => l.industry === val && l.client_name === p.client_name);
-      return { ...p, industry: val, client_name: clientStillValid ? p.client_name : "" };
-    });
-  }
-
-  function handleClientChange(val: string) {
-    setForm(p => {
-      const match = val ? clientMap[val] : undefined;
-      if (!match) return { ...p, client_name: val };
-      return {
-        ...p,
-        client_name: val,
-        industry: p.industry || match.industry || "",
-        agent:    p.agent    || match.agent    || "",
-        city:     p.city     || match.city     || "",
-        state:    p.state    || match.state    || "",
-        country:  p.country  || match.country  || "",
-        location: p.location || match.location || "",
-      };
-    });
-  }
-
-  const byClient = selectedClient === "__all__"
-    ? listings
-    : listings.filter(l => l.client_name === selectedClient);
-
   const byType = typeFilter === "All"
-    ? byClient
-    : byClient.filter(l => l.listing_type === typeFilter);
+    ? listings
+    : listings.filter(l => l.listing_type === typeFilter);
 
   const visible = byType.filter(l => {
     if (!search.trim()) return true;
@@ -681,17 +623,6 @@ function ListingsPageContent() {
         ))}
       </div>
 
-      {/* Client filter */}
-      {clientNames.length > 1 && (
-        <div className="flex items-center gap-2">
-          <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 shrink-0">Client</label>
-          <select className={`${SELECT} max-w-xs`} value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
-            <option value="__all__">All clients</option>
-            {clientNames.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-      )}
-
       {/* Table / Grid card */}
       <div className="bg-white dark:bg-dk-surface rounded-2xl border border-gray-100 dark:border-dk-stroke overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 dark:border-dk-stroke">
@@ -701,7 +632,6 @@ function ListingsPageContent() {
             </h2>
             <p className="text-[11px] text-gray-400 mt-0.5">
               {visible.length} listing{visible.length !== 1 ? "s" : ""}
-              {selectedClient !== "__all__" && <span className="ml-1 text-[#00B5A3]">· {selectedClient}</span>}
             </p>
           </div>
           <div className="flex items-center bg-gray-100 dark:bg-dk-raised rounded-xl p-0.5">
@@ -740,7 +670,7 @@ function ListingsPageContent() {
                   <Home size={22} className="text-gray-200 dark:text-gray-600" />
                 </div>
                 <p className="text-[13px] font-semibold text-gray-400">
-                  {search ? "No matches found" : selectedClient !== "__all__" ? `No listings for ${selectedClient}` : "No listings yet"}
+                  {search ? "No matches found" : "No listings yet"}
                 </p>
                 <p className="text-[11.5px] text-gray-300 mt-1">{search ? "Try a different search term." : 'Click "Add Listing" to get started.'}</p>
               </div>
@@ -771,7 +701,7 @@ function ListingsPageContent() {
                   <Home size={22} className="text-gray-200 dark:text-gray-600" />
                 </div>
                 <p className="text-[13px] font-semibold text-gray-400">
-                  {search ? "No matches found" : selectedClient !== "__all__" ? `No listings for ${selectedClient}` : "No listings yet"}
+                  {search ? "No matches found" : "No listings yet"}
                 </p>
                 <p className="text-[11.5px] text-gray-300 mt-1">{search ? "Try a different search term." : 'Click "Add Listing" to get started.'}</p>
               </div>
@@ -829,20 +759,6 @@ function ListingsPageContent() {
             {/* ── Basic Info ── */}
             {activeTab === "basic" && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={FIELD}>Industry</label>
-                    <ComboInput className={INPUT} placeholder="e.g. Real Estate"
-                      value={form.industry}
-                      options={[...new Set([...INDUSTRIES, ...dl.industry])]}
-                      onChange={handleIndustryChange} />
-                  </div>
-                  <div>
-                    <label className={FIELD}>Client <span className="text-gray-400 font-normal">(Company name)</span></label>
-                    <ComboInput className={INPUT} placeholder="e.g. Emirates Holidays"
-                      value={form.client_name} options={clientOptionsForForm} onChange={handleClientChange} />
-                  </div>
-                </div>
                 <div>
                   <label className={FIELD}>Listing Title <span className="text-gray-400 font-normal">(optional display name)</span></label>
                   <input className={INPUT} placeholder="e.g. 5-Night Maldives Overwater Escape"

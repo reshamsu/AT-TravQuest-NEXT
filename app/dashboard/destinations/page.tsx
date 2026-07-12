@@ -52,7 +52,6 @@ interface Destination {
   category: string[];
   tagline: string;
   description: string;
-  client_name: string;
   status: string;
   image_urls: string[];
   image_collages: string[];
@@ -72,7 +71,7 @@ function blankForm(): DestinationForm {
   }
   return {
     country: "", city: "", continent: [], category: [], tagline: "", description: "",
-    client_name: "", status: "Available", image_urls: [], image_collages: [],
+    status: "Available", image_urls: [], image_collages: [],
     ...sections,
   } as unknown as DestinationForm;
 }
@@ -189,9 +188,9 @@ export default function DestinationsPage() {
   const setF = <K extends keyof DestinationForm>(k: K, v: DestinationForm[K]) => setForm(p => ({ ...p, [k]: v }));
 
   const fetchDestinations = useCallback(async () => {
-    const { data, error } = await supabase.from("ac_destinations").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("ac_destinations").select("*").eq("company", activeCompany).order("created_at", { ascending: false });
     if (!error) setDestinations((data ?? []).map(r => normRow(r as Record<string, unknown>)));
-  }, []);
+  }, [activeCompany]);
 
   useEffect(() => {
     setLoading(true);
@@ -230,7 +229,7 @@ export default function DestinationsPage() {
     if (!item) return;
     const f: Record<string, unknown> = {
       country: item.country, city: item.city, continent: item.continent, category: item.category,
-      tagline: item.tagline, description: item.description, client_name: item.client_name,
+      tagline: item.tagline, description: item.description,
       status: item.status, image_urls: item.image_urls, image_collages: item.image_collages,
     };
     for (const s of SECTION_FIELDS) {
@@ -469,10 +468,6 @@ export default function DestinationsPage() {
                 <div>
                   <label className={FIELD}>Description</label>
                   <textarea rows={3} className={TEXTAREA} value={form.description} onChange={e => setF("description", e.target.value)} />
-                </div>
-                <div>
-                  <label className={FIELD}>Client / Partner Name</label>
-                  <input className={INPUT} value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
                 </div>
               </div>
             )}
