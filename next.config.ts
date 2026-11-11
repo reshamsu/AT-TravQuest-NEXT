@@ -25,4 +25,8 @@ const nextConfig = {
 
 export default nextConfig;
 
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
+if (process.platform !== "win32") {
+  import("@opennextjs/cloudflare").then((m) =>
+    m.initOpenNextCloudflareForDev(),
+  );
+}
