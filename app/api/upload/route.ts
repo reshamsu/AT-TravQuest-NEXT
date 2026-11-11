@@ -1,5 +1,3 @@
-export const runtime = "edge";
-
 import { AwsV4Signer } from "aws4fetch";
 import { NextRequest, NextResponse } from "next/server";
 
